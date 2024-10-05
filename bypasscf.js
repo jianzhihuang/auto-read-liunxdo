@@ -30,7 +30,7 @@ if (fs.existsSync(".env.local")) {
 }
 
 // 读取以分钟为单位的运行时间限制
-const runTimeLimitMinutes = process.env.RUN_TIME_LIMIT_MINUTES || 20;
+const runTimeLimitMinutes = process.env.RUN_TIME_LIMIT_MINUTES || 50;
 
 // 将分钟转换为毫秒
 const runTimeLimitMillis = runTimeLimitMinutes * 60 * 1000;
@@ -47,7 +47,7 @@ const shutdownTimer = setTimeout(() => {
 
 const token = process.env.TELEGRAM_BOT_TOKEN;
 const chatId = process.env.TELEGRAM_CHAT_ID;
-const specificUser = process.env.SPECIFIC_USER || "14790897";
+const specificUser = process.env.SPECIFIC_USER ;
 const maxConcurrentAccounts = 4; // 每批最多同时运行的账号数
 const usernames = process.env.USERNAMES.split(",");
 const passwords = process.env.PASSWORDS.split(",");
