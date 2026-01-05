@@ -276,7 +276,22 @@ async function launchBrowserForUser(username, password) {
     console.log("当前用户:", username);
     const browserOptions = {
       headless: "auto",
-      args: ["--no-sandbox", "--disable-setuid-sandbox"], // Linux 需要的安全设置
+      turnstile: true, // 啟用 Turnstile 自動處理
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-blink-features=AutomationControlled",
+        "--disable-features=IsolateOrigins,site-per-process",
+        "--disable-dev-shm-usage",
+        "--disable-accelerated-2d-canvas",
+        "--no-first-run",
+        "--no-zygote",
+        "--disable-gpu",
+        "--window-size=1920,1080",
+      ],
+      customConfig: {
+        chromePath: undefined, // 讓庫自動尋找 Chrome
+      },
     };
 
     // 添加代理配置到浏览器选项
@@ -656,7 +671,7 @@ async function login(page, username, password, retryCount = 3) {
   await delayClick(1000);
 }
 
-async function navigatePage(url, page, browser) {
+async function navigatePage(url, page, browser, retryCount = 2) {
   try {
     page.setDefaultNavigationTimeout(
       parseInt(process.env.NAV_TIMEOUT_MS || process.env.NAV_TIMEOUT || "120000", 10)
@@ -664,19 +679,35 @@ async function navigatePage(url, page, browser) {
   } catch { }
   await page.goto(url, { waitUntil: "domcontentloaded" }); //如果使用默认的load,linux下页面会一直加载导致无法继续执行
 
+  const cfTimeout = parseInt(process.env.CF_TIMEOUT_MS || "90000", 10); // 默認 90 秒
   const startTime = Date.now(); // 记录开始时间
   let pageTitle = await page.title(); // 获取当前页面标题
 
   while (pageTitle.includes("Just a moment") || pageTitle.includes("请稍候")) {
     console.log("The page is under Cloudflare protection. Waiting...");
 
-    await delayClick(10000); // 每次检查间隔2秒
+    await delayClick(5000); // 每 5 秒檢查一次
 
     // 重新获取页面标题
-    pageTitle = await page.title();
+    try {
+      pageTitle = await page.title();
+    } catch (titleErr) {
+      console.warn("Failed to get page title:", titleErr.message);
+      pageTitle = "Just a moment"; // 假設仍在 CF 驗證中
+    }
 
-    // 检查是否超过35秒
-    if (Date.now() - startTime > 35000) {
+    // 检查是否超时
+    if (Date.now() - startTime > cfTimeout) {
+      if (retryCount > 0) {
+        console.log(`CF 驗證超時，剩餘重試次數: ${retryCount}，刷新頁面...`);
+        try {
+          await page.reload({ waitUntil: "domcontentloaded", timeout: 30000 });
+        } catch (reloadErr) {
+          console.warn("Reload failed:", reloadErr.message);
+        }
+        return navigatePage(url, page, browser, retryCount - 1);
+      }
+
       console.log("Timeout exceeded, aborting actions.");
       await sendToTelegram(`超时了,无法通过Cloudflare验证`);
       // 尝试关闭页面以确保资源释放
