@@ -91,13 +91,11 @@ const enableRssFetch = (process.env.ENABLE_RSS_FETCH || "false") === "true"; // 
 const enableTopicDataFetch = (process.env.ENABLE_TOPIC_DATA_FETCH || "false") === "true"; // 是否开启抓取话题数据，没有设置时默认为false
 
 console.log(
-  `RSS抓取功能状态: ${enableRssFetch ? "开启" : "关闭"} (ENABLE_RSS_FETCH=${
-    process.env.ENABLE_RSS_FETCH
+  `RSS抓取功能状态: ${enableRssFetch ? "开启" : "关闭"} (ENABLE_RSS_FETCH=${process.env.ENABLE_RSS_FETCH
   })`
 );
 console.log(
-  `话题数据抓取功能状态: ${
-    enableTopicDataFetch ? "开启" : "关闭"
+  `话题数据抓取功能状态: ${enableTopicDataFetch ? "开启" : "关闭"
   } (ENABLE_TOPIC_DATA_FETCH=${process.env.ENABLE_TOPIC_DATA_FETCH})`
 );
 
@@ -139,8 +137,7 @@ async function tgSendWithRetry(id, message, maxRetries = 3) {
       lastErr = e;
       const delay = 1500 * (i + 1);
       console.error(
-        `Telegram send failed (attempt ${i + 1}/${maxRetries}): ${
-          e && e.message ? e.message : e
+        `Telegram send failed (attempt ${i + 1}/${maxRetries}): ${e && e.message ? e.message : e
         }`
       );
       await new Promise((r) => setTimeout(r, delay));
@@ -253,8 +250,7 @@ function delayClick(time) {
         console.log("没有下一个批次，即将结束");
       }
       console.log(
-        `批次 ${
-          Math.floor(i / maxConcurrentAccounts) + 1
+        `批次 ${Math.floor(i / maxConcurrentAccounts) + 1
         } 完成，关闭浏览器...,浏览器对象：${browsers}`
       );
       // 关闭所有浏览器实例
@@ -361,8 +357,7 @@ async function launchBrowserForUser(username, password) {
             }
           } catch (e2) {
             console.warn(
-              `Skip disabling autoLike due to closed target: ${
-                (e2 && e2.message) ? e2.message : e2
+              `Skip disabling autoLike due to closed target: ${(e2 && e2.message) ? e2.message : e2
               }`
             );
           }
@@ -644,7 +639,7 @@ async function navigatePage(url, page, browser) {
     page.setDefaultNavigationTimeout(
       parseInt(process.env.NAV_TIMEOUT_MS || process.env.NAV_TIMEOUT || "120000", 10)
     );
-  } catch {}
+  } catch { }
   await page.goto(url, { waitUntil: "domcontentloaded" }); //如果使用默认的load,linux下页面会一直加载导致无法继续执行
 
   const startTime = Date.now(); // 记录开始时间
@@ -662,8 +657,7 @@ async function navigatePage(url, page, browser) {
     if (Date.now() - startTime > 35000) {
       console.log("Timeout exceeded, aborting actions.");
       sendToTelegram(`超时了,无法通过Cloudflare验证`);
-      await browser.close();
-      return; // 超时则退出函数
+      throw new Error("Cloudflare验证超时"); // 抛出异常阻止后续流程执行
     }
   }
   console.log("页面标题：", pageTitle);
