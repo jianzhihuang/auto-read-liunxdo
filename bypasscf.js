@@ -648,7 +648,7 @@ async function navigatePage(url, page, browser) {
   while (pageTitle.includes("Just a moment") || pageTitle.includes("请稍候")) {
     console.log("The page is under Cloudflare protection. Waiting...");
 
-    await delayClick(2000); // 每次检查间隔2秒
+    await delayClick(10000); // 每次检查间隔2秒
 
     // 重新获取页面标题
     pageTitle = await page.title();
