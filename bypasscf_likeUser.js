@@ -125,8 +125,7 @@ function delayClick(time) {
         console.log("没有下一个批次，即将结束");
       }
       console.log(
-        `批次 ${
-          Math.floor(i / maxConcurrentAccounts) + 1
+        `批次 ${Math.floor(i / maxConcurrentAccounts) + 1
         } 完成，关闭浏览器...,浏览器对象：${browsers}`
       );
       // 关闭所有浏览器实例
@@ -397,7 +396,7 @@ async function navigatePage(url, page, browser) {
     pageTitle = await page.title();
 
     // 检查是否超过15秒
-    if (Date.now() - startTime > 35000) {
+    if (Date.now() - startTime > 350000) {
       console.log("Timeout exceeded, aborting actions.");
       await browser.close();
       return; // 超时则退出函数

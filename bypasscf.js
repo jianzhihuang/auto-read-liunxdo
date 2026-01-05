@@ -605,8 +605,25 @@ async function login(page, username, password, retryCount = 3) {
       }
     }
   }
-  // 等待用户名输入框加载
-  await page.waitForSelector("#login-account-name");
+  // 等待用户名输入框加载（登入對話框需要時間渲染）
+  try {
+    await page.waitForSelector("#login-account-name", { timeout: 15000 });
+  } catch (selectorErr) {
+    console.log("登入對話框未打開，嘗試再次點擊登入按鈕...");
+    // 嘗試再次打開登入對話框
+    try {
+      await page.evaluate(() => {
+        const btn = document.querySelector(".login-button") ||
+          Array.from(document.querySelectorAll("button")).find(b =>
+            b.textContent.includes("登录") || b.textContent.includes("login"));
+        if (btn) btn.click();
+      });
+      await delayClick(3000);
+      await page.waitForSelector("#login-account-name", { timeout: 15000 });
+    } catch (retryErr) {
+      throw new Error(`無法打開登入對話框: ${retryErr.message}`);
+    }
+  }
   // 模拟人类在找到输入框后的短暂停顿
   await delayClick(1000); // 延迟500毫秒
   // 清空输入框并输入用户名
@@ -627,8 +644,20 @@ async function login(page, username, password, retryCount = 3) {
   // 模拟人类在输入完成后思考的短暂停顿
   await delayClick(1000);
 
-  // 假设登录按钮的ID是'login-button'，点击登录按钮
-  await page.waitForSelector("#login-button");
+  // 等待登录按钮（提交按鈕）
+  try {
+    await page.waitForSelector("#login-button", { timeout: 10000 });
+  } catch (btnErr) {
+    console.log("找不到 #login-button，嘗試其他選擇器...");
+    // 嘗試尋找替代的提交按鈕
+    const altBtn = await page.$("button[type='submit']") ||
+      await page.$(".btn-primary") ||
+      await page.$(".login-modal .btn");
+    if (!altBtn) {
+      throw new Error(`找不到登入提交按鈕: ${btnErr.message}`);
+    }
+    await altBtn.click();
+  }
   await delayClick(1000); // 模拟在点击登录按钮前的短暂停顿
   await page.click("#login-button");
   try {
