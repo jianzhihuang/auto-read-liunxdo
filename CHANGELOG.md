@@ -1,5 +1,27 @@
 # Changelog
 
+### [1.14.4](https://www.github.com/14790897/auto-read-liunxdo/compare/v1.14.3...v1.14.4) (2025-11-03)
+
+
+### Bug Fixes
+
+* rm hg ([0cd3ab6](https://www.github.com/14790897/auto-read-liunxdo/commit/0cd3ab642fe9cfca109a1732e4ec1e55b3412b63))
+
+### [1.14.3](https://www.github.com/14790897/auto-read-liunxdo/compare/v1.14.2...v1.14.3) (2025-10-26)
+
+
+### Bug Fixes
+
+* ignore cron push ([fbdb7dd](https://www.github.com/14790897/auto-read-liunxdo/commit/fbdb7ddb052c75c7be57c169e6e7f0af3cc82d01))
+
+### [1.14.2](https://www.github.com/14790897/auto-read-liunxdo/compare/v1.14.1...v1.14.2) (2025-09-26)
+
+
+### Bug Fixes
+
+* // [@exclude](https://www.github.com/exclude)      https://linux.do/a/9611/0 ([150d94a](https://www.github.com/14790897/auto-read-liunxdo/commit/150d94a49d6f47468ec95838ee6f70a17eb0d13b))
+* TargetCloseError: Protocol error (Page.addScriptToEvaluateOnNewDocument): Target closed ([a0633d0](https://www.github.com/14790897/auto-read-liunxdo/commit/a0633d06237c60aa49509b5359c30e992fea6ab7))
+
 ### [1.14.1](https://www.github.com/14790897/auto-read-liunxdo/compare/v1.14.0...v1.14.1) (2025-06-25)
 
 
