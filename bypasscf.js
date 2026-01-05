@@ -644,32 +644,23 @@ async function login(page, username, password, retryCount = 3) {
   // 模拟人类在输入完成后思考的短暂停顿
   await delayClick(1000);
 
-  // 等待登录按钮（提交按鈕）
+  // 等待登录按钮（提交按鈕）並點擊
+  let loginBtnClicked = false;
   try {
-    await page.waitForSelector("#login-button", { timeout: 10000 });
-  } catch (btnErr) {
-    console.log("找不到 #login-button，嘗試其他選擇器...");
-    // 嘗試尋找替代的提交按鈕
-    const altBtn = await page.$("button[type='submit']") ||
-      await page.$(".btn-primary") ||
-      await page.$(".login-modal .btn");
-    if (!altBtn) {
-      throw new Error(`找不到登入提交按鈕: ${btnErr.message}`);
-    }
-    await altBtn.click();
-  }
-  await delayClick(1000); // 模拟在点击登录按钮前的短暂停顿
-  await page.click("#login-button");
-  try {
+    await page.waitForSelector("#login-button", { timeout: 15000 });
+    await delayClick(1000);
     await Promise.all([
-      page.waitForNavigation({ waitUntil: "domcontentloaded" }), // 等待 页面跳转 DOMContentLoaded 事件
-      // 去掉上面一行会报错：Error: Execution context was destroyed, most likely because of a navigation. 可能是因为之后没等页面加载完成就执行了脚本
-      page.click("#login-button", { force: true }), // 点击登录按钮触发跳转
-    ]); //注意如果登录失败，这里会一直等待跳转，导致脚本执行失败 这点四个月之前你就发现了结果今天又遇到（有个用户遇到了https://linux.do/t/topic/169209/82），但是你没有在这个报错你提示我8.5
-  } catch (error) {
+      page.waitForNavigation({ waitUntil: "domcontentloaded", timeout: 30000 }),
+      page.click("#login-button", { force: true }),
+    ]);
+    loginBtnClicked = true;
+  } catch (btnErr) {
+    console.log("找不到 #login-button 或點擊失敗，進入重試...");
+
+    // 檢查是否有錯誤提示
     const alertError = await page.$(".alert.alert-error");
     if (alertError) {
-      const alertText = await page.evaluate((el) => el.innerText, alertError); // 使用 evaluate 获取 innerText
+      const alertText = await page.evaluate((el) => el.innerText, alertError);
       if (
         alertText.includes("incorrect") ||
         alertText.includes("Incorrect ") ||
@@ -683,21 +674,35 @@ async function login(page, username, password, retryCount = 3) {
           `非超时错误，也不是密码错误，可能是IP导致，需使用中国美国香港台湾IP，失败用户 ${username}，错误信息：${alertText}`
         );
       }
+    } else if (retryCount > 0) {
+      console.log("Retrying login...");
+      await page.reload({ waitUntil: "domcontentloaded", timeout: parseInt(process.env.NAV_TIMEOUT_MS || process.env.NAV_TIMEOUT || "120000", 10) });
+      await delayClick(2000);
+      return await login(page, username, password, retryCount - 1);
     } else {
-      if (retryCount > 0) {
-        console.log("Retrying login...");
-        await page.reload({ waitUntil: "domcontentloaded", timeout: parseInt(process.env.NAV_TIMEOUT_MS || process.env.NAV_TIMEOUT || "120000", 10) });
-        await delayClick(2000); // 增加重试前的延迟
-        return await login(page, username, password, retryCount - 1);
-      } else {
+      throw new Error(
+        `Navigation timed out in login.超时了,可能是IP质量问题,失败用户 ${username}, ${btnErr.message}`
+      );
+    }
+  }
+
+  // 如果已成功點擊並導航，檢查結果
+  if (loginBtnClicked) {
+    await delayClick(1000);
+    const alertError = await page.$(".alert.alert-error");
+    if (alertError) {
+      const alertText = await page.evaluate((el) => el.innerText, alertError);
+      if (
+        alertText.includes("incorrect") ||
+        alertText.includes("Incorrect ") ||
+        alertText.includes("不正确")
+      ) {
         throw new Error(
-          `Navigation timed out in login.超时了,可能是IP质量问题,失败用户 ${username}, 
-      ${error}`
-        ); //{password}
+          `非超时错误，请检查用户名密码是否正确，失败用户 ${username}, 错误信息：${alertText}`
+        );
       }
     }
   }
-  await delayClick(1000);
 }
 
 async function navigatePage(url, page, browser, retryCount = 2) {
