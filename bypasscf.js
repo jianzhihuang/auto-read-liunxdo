@@ -529,26 +529,48 @@ async function launchBrowserForUser(username, password) {
   }
 }
 async function login(page, username, password, retryCount = 3) {
+  // 检查页面是否仍然有效（防止 detached frame 错误）
+  try {
+    const frame = page.mainFrame();
+    if (!frame || frame.isDetached()) {
+      throw new Error("Page frame is detached, cannot proceed with login");
+    }
+    // 额外检查页面是否可操作
+    await page.evaluate(() => document.readyState);
+  } catch (frameCheckErr) {
+    console.error("Page frame check failed:", frameCheckErr.message);
+    throw new Error(`Cannot login - page frame is invalid: ${frameCheckErr.message}`);
+  }
+
   // 使用XPath查询找到包含"登录"或"login"文本的按钮
-  let loginButtonFound = await page.evaluate(() => {
-    let loginButton = Array.from(document.querySelectorAll("button")).find(
-      (button) =>
-        button.textContent.includes("登录") ||
-        button.textContent.includes("login")
-    ); // 注意loginButton 变量在外部作用域中是无法被 page.evaluate 内部的代码直接修改的。page.evaluate 的代码是在浏览器环境中执行的，这意味着它们无法直接影响 Node.js 环境中的变量
-    // 如果没有找到，尝试根据类名查找
-    if (!loginButton) {
-      loginButton = document.querySelector(".login-button");
+  let loginButtonFound;
+  try {
+    loginButtonFound = await page.evaluate(() => {
+      let loginButton = Array.from(document.querySelectorAll("button")).find(
+        (button) =>
+          button.textContent.includes("登录") ||
+          button.textContent.includes("login")
+      ); // 注意loginButton 变量在外部作用域中是无法被 page.evaluate 内部的代码直接修改的。page.evaluate 的代码是在浏览器环境中执行的，这意味着它们无法直接影响 Node.js 环境中的变量
+      // 如果没有找到，尝试根据类名查找
+      if (!loginButton) {
+        loginButton = document.querySelector(".login-button");
+      }
+      if (loginButton) {
+        loginButton.click();
+        console.log("Login button clicked.");
+        return true; // 返回true表示找到了按钮并点击了
+      } else {
+        console.log("Login button not found.");
+        return false; // 返回false表示没有找到按钮
+      }
+    });
+  } catch (evalErr) {
+    // 捕获 detached frame 错误
+    if (evalErr.message && evalErr.message.includes("detached")) {
+      throw new Error(`Login failed - page frame detached: ${evalErr.message}`);
     }
-    if (loginButton) {
-      loginButton.click();
-      console.log("Login button clicked.");
-      return true; // 返回true表示找到了按钮并点击了
-    } else {
-      console.log("Login button not found.");
-      return false; // 返回false表示没有找到按钮
-    }
-  });
+    throw evalErr;
+  }
   if (!loginButtonFound) {
     if (loginUrl == "https://meta.appinn.net") {
       await page.goto("https://meta.appinn.net/t/topic/52006", {
@@ -653,10 +675,16 @@ async function navigatePage(url, page, browser) {
     // 重新获取页面标题
     pageTitle = await page.title();
 
-    // 检查是否超过15秒
+    // 检查是否超过35秒
     if (Date.now() - startTime > 35000) {
       console.log("Timeout exceeded, aborting actions.");
-      sendToTelegram(`超时了,无法通过Cloudflare验证`);
+      await sendToTelegram(`超时了,无法通过Cloudflare验证`);
+      // 尝试关闭页面以确保资源释放
+      try {
+        await page.close();
+      } catch (closeErr) {
+        console.warn("Failed to close page after CF timeout:", closeErr.message);
+      }
       throw new Error("Cloudflare验证超时"); // 抛出异常阻止后续流程执行
     }
   }
