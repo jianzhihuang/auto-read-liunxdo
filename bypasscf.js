@@ -91,11 +91,13 @@ const enableRssFetch = (process.env.ENABLE_RSS_FETCH || "false") === "true"; // 
 const enableTopicDataFetch = (process.env.ENABLE_TOPIC_DATA_FETCH || "false") === "true"; // 是否开启抓取话题数据，没有设置时默认为false
 
 console.log(
-  `RSS抓取功能状态: ${enableRssFetch ? "开启" : "关闭"} (ENABLE_RSS_FETCH=${process.env.ENABLE_RSS_FETCH
+  `RSS抓取功能状态: ${enableRssFetch ? "开启" : "关闭"} (ENABLE_RSS_FETCH=${
+    process.env.ENABLE_RSS_FETCH
   })`
 );
 console.log(
-  `话题数据抓取功能状态: ${enableTopicDataFetch ? "开启" : "关闭"
+  `话题数据抓取功能状态: ${
+    enableTopicDataFetch ? "开启" : "关闭"
   } (ENABLE_TOPIC_DATA_FETCH=${process.env.ENABLE_TOPIC_DATA_FETCH})`
 );
 
@@ -137,7 +139,8 @@ async function tgSendWithRetry(id, message, maxRetries = 3) {
       lastErr = e;
       const delay = 1500 * (i + 1);
       console.error(
-        `Telegram send failed (attempt ${i + 1}/${maxRetries}): ${e && e.message ? e.message : e
+        `Telegram send failed (attempt ${i + 1}/${maxRetries}): ${
+          e && e.message ? e.message : e
         }`
       );
       await new Promise((r) => setTimeout(r, delay));
@@ -250,7 +253,8 @@ function delayClick(time) {
         console.log("没有下一个批次，即将结束");
       }
       console.log(
-        `批次 ${Math.floor(i / maxConcurrentAccounts) + 1
+        `批次 ${
+          Math.floor(i / maxConcurrentAccounts) + 1
         } 完成，关闭浏览器...,浏览器对象：${browsers}`
       );
       // 关闭所有浏览器实例
@@ -276,22 +280,7 @@ async function launchBrowserForUser(username, password) {
     console.log("当前用户:", username);
     const browserOptions = {
       headless: "auto",
-      turnstile: true, // 啟用 Turnstile 自動處理
-      args: [
-        "--no-sandbox",
-        "--disable-setuid-sandbox",
-        "--disable-blink-features=AutomationControlled",
-        "--disable-features=IsolateOrigins,site-per-process",
-        "--disable-dev-shm-usage",
-        "--disable-accelerated-2d-canvas",
-        "--no-first-run",
-        "--no-zygote",
-        "--disable-gpu",
-        "--window-size=1920,1080",
-      ],
-      customConfig: {
-        chromePath: undefined, // 讓庫自動尋找 Chrome
-      },
+      args: ["--no-sandbox", "--disable-setuid-sandbox"], // Linux 需要的安全设置
     };
 
     // 添加代理配置到浏览器选项
@@ -372,7 +361,8 @@ async function launchBrowserForUser(username, password) {
             }
           } catch (e2) {
             console.warn(
-              `Skip disabling autoLike due to closed target: ${(e2 && e2.message) ? e2.message : e2
+              `Skip disabling autoLike due to closed target: ${
+                (e2 && e2.message) ? e2.message : e2
               }`
             );
           }
@@ -544,48 +534,26 @@ async function launchBrowserForUser(username, password) {
   }
 }
 async function login(page, username, password, retryCount = 3) {
-  // 检查页面是否仍然有效（防止 detached frame 错误）
-  try {
-    const frame = page.mainFrame();
-    if (!frame || frame.isDetached()) {
-      throw new Error("Page frame is detached, cannot proceed with login");
-    }
-    // 额外检查页面是否可操作
-    await page.evaluate(() => document.readyState);
-  } catch (frameCheckErr) {
-    console.error("Page frame check failed:", frameCheckErr.message);
-    throw new Error(`Cannot login - page frame is invalid: ${frameCheckErr.message}`);
-  }
-
   // 使用XPath查询找到包含"登录"或"login"文本的按钮
-  let loginButtonFound;
-  try {
-    loginButtonFound = await page.evaluate(() => {
-      let loginButton = Array.from(document.querySelectorAll("button")).find(
-        (button) =>
-          button.textContent.includes("登录") ||
-          button.textContent.includes("login")
-      ); // 注意loginButton 变量在外部作用域中是无法被 page.evaluate 内部的代码直接修改的。page.evaluate 的代码是在浏览器环境中执行的，这意味着它们无法直接影响 Node.js 环境中的变量
-      // 如果没有找到，尝试根据类名查找
-      if (!loginButton) {
-        loginButton = document.querySelector(".login-button");
-      }
-      if (loginButton) {
-        loginButton.click();
-        console.log("Login button clicked.");
-        return true; // 返回true表示找到了按钮并点击了
-      } else {
-        console.log("Login button not found.");
-        return false; // 返回false表示没有找到按钮
-      }
-    });
-  } catch (evalErr) {
-    // 捕获 detached frame 错误
-    if (evalErr.message && evalErr.message.includes("detached")) {
-      throw new Error(`Login failed - page frame detached: ${evalErr.message}`);
+  let loginButtonFound = await page.evaluate(() => {
+    let loginButton = Array.from(document.querySelectorAll("button")).find(
+      (button) =>
+        button.textContent.includes("登录") ||
+        button.textContent.includes("login")
+    ); // 注意loginButton 变量在外部作用域中是无法被 page.evaluate 内部的代码直接修改的。page.evaluate 的代码是在浏览器环境中执行的，这意味着它们无法直接影响 Node.js 环境中的变量
+    // 如果没有找到，尝试根据类名查找
+    if (!loginButton) {
+      loginButton = document.querySelector(".login-button");
     }
-    throw evalErr;
-  }
+    if (loginButton) {
+      loginButton.click();
+      console.log("Login button clicked.");
+      return true; // 返回true表示找到了按钮并点击了
+    } else {
+      console.log("Login button not found.");
+      return false; // 返回false表示没有找到按钮
+    }
+  });
   if (!loginButtonFound) {
     if (loginUrl == "https://meta.appinn.net") {
       await page.goto("https://meta.appinn.net/t/topic/52006", {
@@ -605,25 +573,8 @@ async function login(page, username, password, retryCount = 3) {
       }
     }
   }
-  // 等待用户名输入框加载（登入對話框需要時間渲染）
-  try {
-    await page.waitForSelector("#login-account-name", { timeout: 15000 });
-  } catch (selectorErr) {
-    console.log("登入對話框未打開，嘗試再次點擊登入按鈕...");
-    // 嘗試再次打開登入對話框
-    try {
-      await page.evaluate(() => {
-        const btn = document.querySelector(".login-button") ||
-          Array.from(document.querySelectorAll("button")).find(b =>
-            b.textContent.includes("登录") || b.textContent.includes("login"));
-        if (btn) btn.click();
-      });
-      await delayClick(3000);
-      await page.waitForSelector("#login-account-name", { timeout: 15000 });
-    } catch (retryErr) {
-      throw new Error(`無法打開登入對話框: ${retryErr.message}`);
-    }
-  }
+  // 等待用户名输入框加载
+  await page.waitForSelector("#login-account-name");
   // 模拟人类在找到输入框后的短暂停顿
   await delayClick(1000); // 延迟500毫秒
   // 清空输入框并输入用户名
@@ -644,23 +595,20 @@ async function login(page, username, password, retryCount = 3) {
   // 模拟人类在输入完成后思考的短暂停顿
   await delayClick(1000);
 
-  // 等待登录按钮（提交按鈕）並點擊
-  let loginBtnClicked = false;
+  // 假设登录按钮的ID是'login-button'，点击登录按钮
+  await page.waitForSelector("#login-button");
+  await delayClick(1000); // 模拟在点击登录按钮前的短暂停顿
+  await page.click("#login-button");
   try {
-    await page.waitForSelector("#login-button", { timeout: 15000 });
-    await delayClick(1000);
     await Promise.all([
-      page.waitForNavigation({ waitUntil: "domcontentloaded", timeout: 30000 }),
-      page.click("#login-button", { force: true }),
-    ]);
-    loginBtnClicked = true;
-  } catch (btnErr) {
-    console.log("找不到 #login-button 或點擊失敗，進入重試...");
-
-    // 檢查是否有錯誤提示
+      page.waitForNavigation({ waitUntil: "domcontentloaded" }), // 等待 页面跳转 DOMContentLoaded 事件
+      // 去掉上面一行会报错：Error: Execution context was destroyed, most likely because of a navigation. 可能是因为之后没等页面加载完成就执行了脚本
+      page.click("#login-button", { force: true }), // 点击登录按钮触发跳转
+    ]); //注意如果登录失败，这里会一直等待跳转，导致脚本执行失败 这点四个月之前你就发现了结果今天又遇到（有个用户遇到了https://linux.do/t/topic/169209/82），但是你没有在这个报错你提示我8.5
+  } catch (error) {
     const alertError = await page.$(".alert.alert-error");
     if (alertError) {
-      const alertText = await page.evaluate((el) => el.innerText, alertError);
+      const alertText = await page.evaluate((el) => el.innerText, alertError); // 使用 evaluate 获取 innerText
       if (
         alertText.includes("incorrect") ||
         alertText.includes("Incorrect ") ||
@@ -674,83 +622,48 @@ async function login(page, username, password, retryCount = 3) {
           `非超时错误，也不是密码错误，可能是IP导致，需使用中国美国香港台湾IP，失败用户 ${username}，错误信息：${alertText}`
         );
       }
-    } else if (retryCount > 0) {
-      console.log("Retrying login...");
-      await page.reload({ waitUntil: "domcontentloaded", timeout: parseInt(process.env.NAV_TIMEOUT_MS || process.env.NAV_TIMEOUT || "120000", 10) });
-      await delayClick(2000);
-      return await login(page, username, password, retryCount - 1);
     } else {
-      throw new Error(
-        `Navigation timed out in login.超时了,可能是IP质量问题,失败用户 ${username}, ${btnErr.message}`
-      );
-    }
-  }
-
-  // 如果已成功點擊並導航，檢查結果
-  if (loginBtnClicked) {
-    await delayClick(1000);
-    const alertError = await page.$(".alert.alert-error");
-    if (alertError) {
-      const alertText = await page.evaluate((el) => el.innerText, alertError);
-      if (
-        alertText.includes("incorrect") ||
-        alertText.includes("Incorrect ") ||
-        alertText.includes("不正确")
-      ) {
+      if (retryCount > 0) {
+        console.log("Retrying login...");
+        await page.reload({ waitUntil: "domcontentloaded", timeout: parseInt(process.env.NAV_TIMEOUT_MS || process.env.NAV_TIMEOUT || "120000", 10) });
+        await delayClick(2000); // 增加重试前的延迟
+        return await login(page, username, password, retryCount - 1);
+      } else {
         throw new Error(
-          `非超时错误，请检查用户名密码是否正确，失败用户 ${username}, 错误信息：${alertText}`
-        );
+          `Navigation timed out in login.超时了,可能是IP质量问题,失败用户 ${username}, 
+      ${error}`
+        ); //{password}
       }
     }
   }
+  await delayClick(1000);
 }
 
-async function navigatePage(url, page, browser, retryCount = 2) {
+async function navigatePage(url, page, browser) {
   try {
     page.setDefaultNavigationTimeout(
       parseInt(process.env.NAV_TIMEOUT_MS || process.env.NAV_TIMEOUT || "120000", 10)
     );
-  } catch { }
+  } catch {}
   await page.goto(url, { waitUntil: "domcontentloaded" }); //如果使用默认的load,linux下页面会一直加载导致无法继续执行
 
-  const cfTimeout = parseInt(process.env.CF_TIMEOUT_MS || "90000", 10); // 默認 90 秒
   const startTime = Date.now(); // 记录开始时间
   let pageTitle = await page.title(); // 获取当前页面标题
 
   while (pageTitle.includes("Just a moment") || pageTitle.includes("请稍候")) {
     console.log("The page is under Cloudflare protection. Waiting...");
 
-    await delayClick(5000); // 每 5 秒檢查一次
+    await delayClick(2000); // 每次检查间隔2秒
 
     // 重新获取页面标题
-    try {
-      pageTitle = await page.title();
-    } catch (titleErr) {
-      console.warn("Failed to get page title:", titleErr.message);
-      pageTitle = "Just a moment"; // 假設仍在 CF 驗證中
-    }
+    pageTitle = await page.title();
 
-    // 检查是否超时
-    if (Date.now() - startTime > cfTimeout) {
-      if (retryCount > 0) {
-        console.log(`CF 驗證超時，剩餘重試次數: ${retryCount}，刷新頁面...`);
-        try {
-          await page.reload({ waitUntil: "domcontentloaded", timeout: 30000 });
-        } catch (reloadErr) {
-          console.warn("Reload failed:", reloadErr.message);
-        }
-        return navigatePage(url, page, browser, retryCount - 1);
-      }
-
+    // 检查是否超过15秒
+    if (Date.now() - startTime > 35000) {
       console.log("Timeout exceeded, aborting actions.");
-      await sendToTelegram(`超时了,无法通过Cloudflare验证`);
-      // 尝试关闭页面以确保资源释放
-      try {
-        await page.close();
-      } catch (closeErr) {
-        console.warn("Failed to close page after CF timeout:", closeErr.message);
-      }
-      throw new Error("Cloudflare验证超时"); // 抛出异常阻止后续流程执行
+      sendToTelegram(`超时了,无法通过Cloudflare验证`);
+      await browser.close();
+      return; // 超时则退出函数
     }
   }
   console.log("页面标题：", pageTitle);
